@@ -1,12 +1,41 @@
 ########################################
-# CS/CNS/EE 155 2017
-# Problem Set 5
+# CS/CNS/EE 155 2018
+# Problem Set 6
 #
 # Author:       Andrew Kang
-# Description:  Set 5 solutions
+# Description:  Set 6 skeleton code
 ########################################
 
+# You can use this (optional) skeleton code to complete the HMM
+# implementation of set 5. Once each part is implemented, you can simply
+# execute the related problem scripts (e.g. run 'python 2G.py') to quickly
+# see the results from your code.
+#
+# Some pointers to get you started:
+#
+#     - Choose your notation carefully and consistently! Readable
+#       notation will make all the difference in the time it takes you
+#       to implement this class, as well as how difficult it is to debug.
+#
+#     - Read the documentation in this file! Make sure you know what
+#       is expected from each function and what each variable is.
+#
+#     - Any reference to "the (i, j)^th" element of a matrix T means that
+#       you should use T[i][j].
+#
+#     - Note that in our solution code, no NumPy was used. That is, there
+#       are no fancy tricks here, just basic coding. If you understand HMMs
+#       to a thorough extent, the rest of this implementation should come
+#       naturally. However, if you'd like to use NumPy, feel free to.
+#
+#     - Take one step at a time! Move onto the next algorithm to implement
+#       only if you're absolutely sure that all previous algorithms are
+#       correct. We are providing you waypoints for this reason.
+#
+# To get started, just fill in code where indicated. Best of luck!
+
 import random
+import math
 
 class HiddenMarkovModel:
     '''
@@ -16,7 +45,7 @@ class HiddenMarkovModel:
     def __init__(self, A, O):
         '''
         Initializes an HMM. Assumes the following:
-            - States and observations are integers starting from 0.
+            - States and observations are integers starting from 0. 
             - There is a start state (see notes on A_start below). There
               is no integer associated with the start state, only
               probabilities in the vector A_start.
@@ -34,13 +63,13 @@ class HiddenMarkovModel:
 
         Parameters:
             L:          Number of states.
-
+            
             D:          Number of observations.
-
+            
             A:          The transition matrix.
-
+            
             O:          The observation matrix.
-
+            
             A_start:    Starting transition probabilities. The i^th element
                         is the probability of transitioning from the start
                         state to state i. For simplicity, we assume that
@@ -56,7 +85,7 @@ class HiddenMarkovModel:
 
     def viterbi(self, x):
         '''
-        Uses the Viterbi algorithm to find the max probability state
+        Uses the Viterbi algorithm to find the max probability state 
         sequence corresponding to a given input sequence.
 
         Arguments:
@@ -64,7 +93,7 @@ class HiddenMarkovModel:
                         consisting of integers ranging from 0 to D - 1.
 
         Returns:
-            max_seq:    Output sequence corresponding to x with the highest
+            max_seq:    State sequence corresponding to x with the highest
                         probability.
         '''
 
@@ -79,38 +108,34 @@ class HiddenMarkovModel:
         probs = [[0. for _ in range(self.L)] for _ in range(M + 1)]
         seqs = [['' for _ in range(self.L)] for _ in range(M + 1)]
 
-        # Calculate initial prefixes and probabilities.
-        for curr in range(self.L):
-            probs[1][curr] = self.A_start[curr] * self.O[curr][x[0]]
-            seqs[1][curr] = str(curr)
 
-        # Calculate best prefixes and probabilities throughout sequence.
-        for t in range(2, M + 1):
-            # Iterate over all possible current states.
-            for curr in range(self.L):
-                max_prob = float("-inf")
-                max_prefix = ''
+        for j in range(1, M+1):
+            for a in range(self.L):
+                if j == 1:
+                    probs[j][a] = self.A_start[a] * self.O[a][x[0]]
+                    seqs[j][a] = str(a)
+                else:
+                    #find the max probability
+                    max_prob = -1
+                    max_seq = ''
+                    for a1 in range(self.L):
+                        curr_prob = probs[j-1][a1] * self.A[a1][a]
+                        if curr_prob > max_prob:
+                            max_prob = curr_prob
+                            max_seq = seqs[j-1][a1]
 
-                # Iterate over all possible previous states to find one
-                # that would maximize the probability of the current state.
-                for prev in range(self.L):
-                    curr_prob = probs[t - 1][prev] \
-                                * self.A[prev][curr] \
-                                * self.O[curr][x[t - 1]]
+                    probs[j][a] = max_prob  * self.O[a][x[j-1]]
+                    seqs[j][a] = max_seq + str(a)
+        
+        # finding the max probability in the last rowz
+        max_seq = ''
+        max_prob = -1
+        for l in range(self.L):
+            if probs[M][l] > max_prob:
+                max_prob = probs[M][l] 
+                max_seq = seqs[M][l]
 
-                    # Continually update max probability and prefix.
-                    if curr_prob >= max_prob:
-                        max_prob = curr_prob
-                        max_prefix = seqs[t - 1][prev]
 
-                # Store the max probability and prefix.
-                probs[t][curr] = max_prob
-                seqs[t][curr] = max_prefix + str(curr)
-
-        # Find the index of the max probability of a sequence ending in x^M
-        # and the corresponding output sequence.
-        max_i = max(enumerate(probs[-1]), key=lambda x: x[1])[0]
-        max_seq = seqs[-1][max_i]
 
         return max_seq
 
@@ -142,36 +167,22 @@ class HiddenMarkovModel:
 
         M = len(x)      # Length of sequence.
         alphas = [[0. for _ in range(self.L)] for _ in range(M + 1)]
+        for i in range(1 ,M+1):
+            for j in range(self.L):
+                if i == 1:
+                    alphas[i][j] = self.O[j][x[i-1]] * self.A_start[j]
+                else:
+                    sum_ = 0
+                    for j1 in range(self.L):
+                        sum_ += alphas[i-1][j1] * self.A[j1][j]
 
-        # Note that alpha_j(0) is already correct for all j's.
-        # Calculate alpha_j(1) for all j's.
-        for curr in range(self.L):
-            alphas[1][curr] = self.A_start[curr] * self.O[curr][x[0]]
-
-        # Calculate alphas throughout sequence.
-        for t in range(1, M):
-            # Iterate over all possible current states.
-            for curr in range(self.L):
-                prob = 0
-
-                # Iterate over all possible previous states to accumulate
-                # the probabilities of all paths from the start state to
-                # the current state.
-                for prev in range(self.L):
-                    prob += alphas[t][prev] \
-                            * self.A[prev][curr] \
-                            * self.O[curr][x[t]]
-
-                # Store the accumulated probability.
-                alphas[t + 1][curr] = prob
-
+                    alphas[i][j] = self.O[j][x[i-1]] * sum_
             if normalize:
-                norm = sum(alphas[t + 1])
-                for curr in range(self.L):
-                    alphas[t + 1][curr] /= norm
+                alphas[i] = [a/sum(alphas[i]) for a in alphas[i]]
+
+
 
         return alphas
-
 
     def backward(self, x, normalize=False):
         '''
@@ -198,42 +209,75 @@ class HiddenMarkovModel:
                         given that y^M = 0, i.e. the last state is 0.
         '''
 
+        
         M = len(x)      # Length of sequence.
         betas = [[0. for _ in range(self.L)] for _ in range(M + 1)]
-
-        # Initialize initial betas.
-        for curr in range(self.L):
-            betas[-1][curr] = 1
-
-        # Calculate betas throughout sequence.
-        for t in range(-1, -M - 1, -1):
-            # Iterate over all possible current states.
-            for curr in range(self.L):
-                prob = 0
-
-                # Iterate over all possible next states to accumulate
-                # the probabilities of all paths from the end state to
-                # the current state.
-                for nxt in range(self.L):
-                    if t == -M:
-                        prob += betas[t][nxt] \
-                                * self.A_start[nxt] \
-                                * self.O[nxt][x[t]]
-
-                    else:
-                        prob += betas[t][nxt] \
-                                * self.A[curr][nxt] \
-                                * self.O[nxt][x[t]]
-
-                # Store the accumulated probability.
-                betas[t - 1][curr] = prob
-
+        for i in range (M, 0, -1):
+            for j in range(self.L):
+                if i == M:
+                    betas[i][j] = 1
+                else:
+                    sum_ = 0
+                    for j1 in range(self.L):
+                        sum_ += betas[i+1][j1] * self.A[j][j1] * self.O[j1][x[i]]
+                    betas[i][j] = sum_
             if normalize:
-                norm = sum(betas[t - 1])
-                for curr in range(self.L):
-                    betas[t - 1][curr] /= norm
+                betas[i] = [a/sum(betas[i]) for a in betas[i]]
 
         return betas
+
+
+    def supervised_learning(self, X, Y):
+        '''
+        Trains the HMM using the Maximum Likelihood closed form solutions
+        for the transition and observation matrices on a labeled
+        datset (X, Y). Note that this method does not return anything, but
+        instead updates the attributes of the HMM object.
+
+        Arguments:
+            X:          A dataset consisting of input sequences in the form
+                        of lists of variable length, consisting of integers 
+                        ranging from 0 to D - 1. In other words, a list of
+                        lists.
+
+            Y:          A dataset consisting of state sequences in the form
+                        of lists of variable length, consisting of integers 
+                        ranging from 0 to L - 1. In other words, a list of
+                        lists.
+
+                        Note that the elements in X line up with those in Y.
+        '''
+
+        # Calculate each element of A using the M-step formulas.
+
+
+        for a in range(self.L):
+            for b in range(self.L):
+                sum_num = 0
+                sum_denom = 0
+                for i in range(len(Y)):
+                    for j in range(1, len(Y[i])):
+                        if Y[i][j] == b and Y[i][j-1] == a:
+                            sum_num += 1
+                        if Y[i][j-1] == a:
+                            sum_denom += 1
+                self.A[a][b] = sum_num/sum_denom
+
+
+
+
+        # Calculate each element of O using the M-step formulas.
+        for a in range(self.L):
+            for w in range(self.D):
+                sum_num = 0
+                sum_denom = 0
+                for i in range(len(Y)):
+                    for j in range(len(Y[i])):
+                        if X[i][j] == w and Y[i][j]== a:
+                            sum_num += 1
+                        if Y[i][j] == a:
+                            sum_denom += 1
+                self.O[a][w] = sum_num/sum_denom
 
 
     def unsupervised_learning(self, X, N_iters):
@@ -249,91 +293,75 @@ class HiddenMarkovModel:
 
             N_iters:    The number of iterations to train on.
         '''
+        for itera in range(N_iters):
+            print(itera)
+            two = [[0. for i in range(len(x_))] for x_ in X]
+            three = [[0. for i in range(len(x_))] for x_ in X]
 
-        # Note that a comment starting with 'E' refers to the fact that
-        # the code under the comment is part of the E-step.
+            #M = len(X[0])
+            
+            for x_i in range(len(X)):
+                # run Forward-Backward for each x in X 
+                alphas = self.forward(X[x_i], True)
+                betas = self.backward(X[x_i], True)
+                for j in range (1, len(X[x_i])+1):
 
-        # Similarly, a comment starting with 'M' refers to the fact that
-        # the code under the comment is part of the M-step.
+                    # vector of a_values for each index in two matrice
+                    a_values = [0. for i in range(self.L)]
+                    for a in range(self.L):
+                        a_values[a] = alphas[j][a]*betas[j][a]
 
-        for iteration in range(1, N_iters + 1):
-            print(iteration)
-            if iteration % 10 == 0:
-                print("Iteration: " + str(iteration))
-
-            # Numerator and denominator for the update terms of A and O.
-            A_num = [[0. for i in range(self.L)] for j in range(self.L)]
-            O_num = [[0. for i in range(self.D)] for j in range(self.L)]
-            A_den = [0. for i in range(self.L)]
-            O_den = [0. for i in range(self.L)]
-
-            # For each input sequence:
-            for x in X:
-                M = len(x)
-                # Compute the alpha and beta probability vectors.
-                alphas = self.forward(x, normalize=True)
-                betas = self.backward(x, normalize=True)
-
-                # E: Update the expected observation probabilities for a
-                # given (x, y).
-                # The i^th index is P(y^t = i, x).
-                for t in range(1, M + 1):
-                    P_curr = [0. for _ in range(self.L)]
-
-                    for curr in range(self.L):
-                        P_curr[curr] = alphas[t][curr] * betas[t][curr]
-
-                    # Normalize the probabilities.
-                    norm = sum(P_curr)
-                    for curr in range(len(P_curr)):
-                        P_curr[curr] /= norm
-
-                    for curr in range(self.L):
-                        if t != M:
-                            A_den[curr] += P_curr[curr]
-                        O_den[curr] += P_curr[curr]
-                        O_num[curr][x[t - 1]] += P_curr[curr]
-
-                # E: Update the expectedP(y^j = a, y^j+1 = b, x) for given (x, y)
-                for t in range(1, M):
-                    P_curr_nxt = [[0. for _ in range(self.L)] for _ in range(self.L)]
-
-                    for curr in range(self.L):
-                        for nxt in range(self.L):
-                            P_curr_nxt[curr][nxt] = alphas[t][curr] \
-                                                    * self.A[curr][nxt] \
-                                                    * self.O[nxt][x[t]] \
-                                                    * betas[t + 1][nxt]
-
-                    # Normalize:
-                    norm = 0
-                    for lst in P_curr_nxt:
-                        norm += sum(lst)
-                    for curr in range(self.L):
-                        for nxt in range(self.L):
-                            P_curr_nxt[curr][nxt] /= norm
-
-                    # Update A_num
-                    for curr in range(self.L):
-                        for nxt in range(self.L):
-                            A_num[curr][nxt] += P_curr_nxt[curr][nxt]
-
-            for curr in range(self.L):
-                for nxt in range(self.L):
-                    self.A[curr][nxt] = A_num[curr][nxt] / A_den[curr]
-
-            for curr in range(self.L):
-                for xt in range(self.D):
-                    self.O[curr][xt] = O_num[curr][xt] / O_den[curr]
+                    sum_denom = sum(a_values) 
+                    two[x_i][j-1] = [val/sum_denom for val in a_values]
 
 
-    def generate_emission(self, M, obs_map_r, syl_dict):
+                    # matrix of a_b_values for each index in three matrice
+                    a_b_values = [[0. for i in range(self.L)] for x in range(self.L)]
+                    bmp_denom = 0
+
+                    if j < len(X[x_i]):
+                        for a in range(self.L):
+                            for b in range(self.L):
+                                a_b_values[a][b]= alphas[j][a]*self.O[b][X[x_i][j]]*self.A[a][b]*betas[j+1][b]
+                                bmp_denom += a_b_values[a][b]
+
+                        three[x_i][j-1] = [[val/bmp_denom for val in row] for row in a_b_values]
+
+
+            # Calculate each element of A using the M-step formulas.
+            for a in range(self.L):
+                for b in range(self.L):
+                    sum_num = 0
+                    sum_denom = 0
+                    for i in range(len(X)):
+                        for j in range(len(X[i])-1):
+                            sum_num += three[i][j][a][b]
+                            sum_denom += two[i][j][a]
+                    self.A[a][b] = sum_num/sum_denom
+
+            # Calculate each element of O using the M-step formulas.
+            for a in range(self.L):
+                for w in range(self.D):
+                    sum_num = 0
+                    sum_denom = 0
+                    for i in range(len(X)):
+                        for j in range(len(X[i])):
+                            if X[i][j] == w:
+                                sum_num += two[i][j][a]
+                            sum_denom += two[i][j][a]
+                    self.O[a][w] = sum_num/sum_denom
+
+
+
+
+
+    def generate_emission(self, M):
         '''
-        Generates an emission of M syllables, assuming that the starting state
-        is chosen uniformly at random.
+        Generates an emission of length M, assuming that the starting state
+        is chosen uniformly at random. 
 
         Arguments:
-            M:          Number of Syllables
+            M:          Length of the emission to generate.
 
         Returns:
             emission:   The randomly generated emission as a list.
@@ -342,164 +370,24 @@ class HiddenMarkovModel:
         '''
 
         emission = []
-        state = random.choice(range(self.L))
         states = []
-        # counter keeping track of number of syllables
-        count = 0
 
-        while count < M:
-            # Append state.
+        i = 1
+        state = random.randint(0, self.L - 1)
+        my_states = [val for val in range(self.L)]
+        my_emissions = [val for val in range(self.D)]
 
-            if count == 0:
-                states.append(state)
-            else:
-                # Sample next state.
-                rand_var = random.uniform(0, 1)
-                next_state = 0
+        states.append(state)
+        emission.append(random.choices(my_emissions, weights=self.O[state],k = 1)[0])
 
-                while rand_var > 0:
-                    rand_var -= self.A[state][next_state]
-                    next_state += 1
-
-                next_state -= 1
-                state = next_state
-                states.append(state)
-
-            while True:
-                # Sample next observation.
-                rand_var = random.uniform(0, 1)
-                next_obs = 0
-
-                while rand_var > 0:
-                    rand_var -= self.O[state][next_obs]
-                    next_obs += 1
-
-                next_obs -= 1
-                # amount of syllables needed
-                diff = M - count
-                word = obs_map_r[next_obs]
-                syllable = self.find_syl(word, syl_dict, diff)
-                if syllable != -1:
-                    count += syllable
-                    break
-
-            emission.append(next_obs)
+        while i < M:
+            i += 1
+            state = random.choices(my_states, weights=self.A[state],k = 1)[0]
+            states.append(state)
+                
+            emission.append(random.choices(my_emissions, weights=self.O[state],k = 1)[0])
 
         return emission, states
-
-
-    def generate_emission_rhyme(self, M, obs_map, obs_map_r, syl_dict, first_word,
-                                                                first_state):
-        '''
-        Generates an emission of M syllables starting with a given word,
-        assuming that the starting state is chosen uniformly at random.
-
-        Arguments:
-            M:          Number of Syllables
-
-        Returns:
-            emission:   The randomly generated emission as a list.
-
-            states:     The randomly generated states as a list.
-        '''
-
-        emission = []
-        state = first_state
-        states = []
-        # counter keeping track of number of syllables
-        count = 0
-
-        while count < M:
-            # Append state.
-
-            if count == 0:
-                states.append(state)
-                emission.append(obs_map[first_word])
-                syllable = self.find_syl(first_word, syl_dict, M)
-                count += syllable
-
-
-            else:
-                # Sample next state.
-                rand_var = random.uniform(0, 1)
-                next_state = 0
-
-                while rand_var > 0:
-                    rand_var -= self.A[state][next_state]
-                    next_state += 1
-
-                next_state -= 1
-                state = next_state
-                states.append(state)
-
-
-                while True:
-                    # Sample next observation.
-                    rand_var = random.uniform(0, 1)
-                    next_obs = 0
-
-                    while rand_var > 0:
-                        rand_var -= self.O[state][next_obs]
-                        next_obs += 1
-
-                    next_obs -= 1
-                    # amount of syllables needed
-                    diff = M - count
-                    word = obs_map_r[next_obs]
-                    syllable = self.find_syl(word, syl_dict, diff)
-                    if syllable != -1:
-                        count += syllable
-                        break
-
-                emission.append(next_obs)
-
-        return emission, states
-
-
-    def find_state(self, x):
-        '''
-        Chooses a state (based on observation matrix) that could have
-        generated a given emission x.
-        '''
-
-        # Find P(y | x) and sample state from the probs
-        probs = [row[x] for row in self.O]
-        sum_probs = sum(probs)
-        probs = [prob / sum_probs for prob in probs]
-        rand_var = random.uniform(0, 1)
-        next_state = 0
-        while rand_var > 0:
-            rand_var -= probs[next_state]
-            next_state += 1
-
-        return next_state - 1
-
-
-    def find_syl (self, word, dic, diff):
-        '''
-        Returns number of syllables of a word. Returns -1
-        if the number of syllables in the word makes
-        the line exceed 10 syllables
-        '''
-
-        lst = dic[word.lower()]
-
-        real = lst[0]
-        end = lst[1]
-
-
-        # threshold = 0
-        # bool found = False
-        for i in range(len(real)):
-            if real[i] <= diff:
-                return random.choice(real[i:])
-
-        if len(end) != 0:
-            for j in range(len(end)):
-                if end[j] == diff:
-                    return end[j]
-
-        return -1
 
 
     def probability_alphas(self, x):
@@ -518,10 +406,10 @@ class HiddenMarkovModel:
         # Calculate alpha vectors.
         alphas = self.forward(x)
 
-        # alpha_j(M) gives the probability that the output sequence ends
+        # alpha_j(M) gives the probability that the state sequence ends
         # in j. Summing this value over all possible states j gives the
-        # total probability of x paired with any output sequence, i.e. the
-        # probability of x.
+        # total probability of x paired with any state sequence, i.e.
+        # the probability of x.
         prob = sum(alphas[-1])
         return prob
 
@@ -541,15 +429,69 @@ class HiddenMarkovModel:
 
         betas = self.backward(x)
 
-        # beta_j(0) gives the probability of the output sequence. Summing
-        # this over all states and then normalizing gives the total
-        # probability of x paired with any output sequence, i.e. the
-        # probability of x.
-        prob = sum([betas[1][k] * self.A_start[k] * self.O[k][x[0]] \
-            for k in range(self.L)])
+        # beta_j(1) gives the probability that the state sequence starts
+        # with j. Summing this, multiplied by the starting transition
+        # probability and the observation probability, over all states
+        # gives the total probability of x paired with any state
+        # sequence, i.e. the probability of x.
+        prob = sum([betas[1][j] * self.A_start[j] * self.O[j][x[0]] \
+                    for j in range(self.L)])
 
         return prob
 
+
+def supervised_HMM(X, Y):
+    '''
+    Helper function to train a supervised HMM. The function determines the
+    number of unique states and observations in the given data, initializes
+    the transition and observation matrices, creates the HMM, and then runs
+    the training function for supervised learning.
+
+    Arguments:
+        X:          A dataset consisting of input sequences in the form
+                    of lists of variable length, consisting of integers 
+                    ranging from 0 to D - 1. In other words, a list of lists.
+
+        Y:          A dataset consisting of state sequences in the form
+                    of lists of variable length, consisting of integers 
+                    ranging from 0 to L - 1. In other words, a list of lists.
+                    Note that the elements in X line up with those in Y.
+    '''
+    # Make a set of observations.
+    observations = set()
+    for x in X:
+        observations |= set(x)
+
+    # Make a set of states.
+    states = set()
+    for y in Y:
+        states |= set(y)
+    
+    # Compute L and D.
+    L = len(states)
+    D = len(observations)
+
+    # Randomly initialize and normalize matrix A.
+    A = [[random.random() for i in range(L)] for j in range(L)]
+
+    for i in range(len(A)):
+        norm = sum(A[i])
+        for j in range(len(A[i])):
+            A[i][j] /= norm
+    
+    # Randomly initialize and normalize matrix O.
+    O = [[random.random() for i in range(D)] for j in range(L)]
+
+    for i in range(len(O)):
+        norm = sum(O[i])
+        for j in range(len(O[i])):
+            O[i][j] /= norm
+
+    # Train an HMM with labeled data.
+    HMM = HiddenMarkovModel(A, O)
+    HMM.supervised_learning(X, Y)
+
+    return HMM
 
 def unsupervised_HMM(X, n_states, N_iters):
     '''
@@ -560,11 +502,11 @@ def unsupervised_HMM(X, n_states, N_iters):
 
     Arguments:
         X:          A dataset consisting of input sequences in the form
-                    of lists of variable length, consisting of integers
+                    of lists of variable length, consisting of integers 
                     ranging from 0 to D - 1. In other words, a list of lists.
 
         n_states:   Number of hidden states to use in training.
-
+        
         N_iters:    The number of iterations to train on.
     '''
 
@@ -572,19 +514,21 @@ def unsupervised_HMM(X, n_states, N_iters):
     observations = set()
     for x in X:
         observations |= set(x)
-
+    
     # Compute L and D.
     L = n_states
     D = len(observations)
 
-    # Randomly initialize and normalize matrices A and O.
+    # Randomly initialize and normalize matrix A.
+    random.seed(2019)
+
     A = [[random.random() for i in range(L)] for j in range(L)]
 
     for i in range(len(A)):
         norm = sum(A[i])
         for j in range(len(A[i])):
             A[i][j] /= norm
-
+    
     # Randomly initialize and normalize matrix O.
     O = [[random.random() for i in range(D)] for j in range(L)]
 

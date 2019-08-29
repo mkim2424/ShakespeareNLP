@@ -16,11 +16,11 @@ class HiddenMarkovModel:
     def __init__(self, A, O):
         '''
         Initializes an HMM. Assumes the following:
-            - States and observations are integers starting from 0. 
+            - States and observations are integers starting from 0.
             - There is a start state (see notes on A_start below). There
               is no integer associated with the start state, only
               probabilities in the vector A_start.
-            - There is no end state. 
+            - There is no end state.
 
         Arguments:
             A:          Transition matrix with dimensions L x L.
@@ -36,11 +36,11 @@ class HiddenMarkovModel:
             L:          Number of states.
 
             D:          Number of observations.
-            
+
             A:          The transition matrix.
-            
+
             O:          The observation matrix.
-            
+
             A_start:    Starting transition probabilities. The i^th element
                         is the probability of transitioning from the start
                         state to state i. For simplicity, we assume that
@@ -56,7 +56,7 @@ class HiddenMarkovModel:
 
     def viterbi(self, x):
         '''
-        Uses the Viterbi algorithm to find the max probability state 
+        Uses the Viterbi algorithm to find the max probability state
         sequence corresponding to a given input sequence.
 
         Arguments:
@@ -236,9 +236,6 @@ class HiddenMarkovModel:
         return betas
 
 
-  
-
-
     def unsupervised_learning(self, X, N_iters):
         '''
         Trains the HMM using the Baum-Welch algorithm on an unlabeled
@@ -260,6 +257,7 @@ class HiddenMarkovModel:
         # the code under the comment is part of the M-step.
 
         for iteration in range(1, N_iters + 1):
+            print(iteration)
             if iteration % 10 == 0:
                 print("Iteration: " + str(iteration))
 
@@ -281,7 +279,7 @@ class HiddenMarkovModel:
                 # The i^th index is P(y^t = i, x).
                 for t in range(1, M + 1):
                     P_curr = [0. for _ in range(self.L)]
-                    
+
                     for curr in range(self.L):
                         P_curr[curr] = alphas[t][curr] * betas[t][curr]
 
@@ -328,10 +326,11 @@ class HiddenMarkovModel:
                 for xt in range(self.D):
                     self.O[curr][xt] = O_num[curr][xt] / O_den[curr]
 
+
     def generate_emission(self, M, obs_map_r, syl_dict):
         '''
         Generates an emission of M syllables, assuming that the starting state
-        is chosen uniformly at random. 
+        is chosen uniformly at random.
 
         Arguments:
             M:          Number of Syllables
@@ -350,6 +349,7 @@ class HiddenMarkovModel:
 
         while count < M:
             # Append state.
+
             if count == 0:
                 states.append(state)
             else:
@@ -364,7 +364,6 @@ class HiddenMarkovModel:
                 next_state -= 1
                 state = next_state
                 states.append(state)
-
 
             while True:
                 # Sample next observation.
@@ -386,15 +385,14 @@ class HiddenMarkovModel:
 
             emission.append(next_obs)
 
-
-
         return emission, states
 
 
-    def generate_emission_rhyme(self, M, obs_map, obs_map_r, syl_dict, first_word, first_state):
+    def generate_emission_rhyme(self, M, obs_map, obs_map_r, syl_dict, first_word,
+                                                                first_state):
         '''
-        Generates an emission of M syllables, assuming that the starting state
-        is chosen uniformly at random. 
+        Generates an emission of M syllables starting with a given word,
+        assuming that the starting state is chosen uniformly at random.
 
         Arguments:
             M:          Number of Syllables
@@ -420,6 +418,7 @@ class HiddenMarkovModel:
                 syllable = self.find_syl(first_word, syl_dict, M)
                 count += syllable
 
+
             else:
                 # Sample next state.
                 rand_var = random.uniform(0, 1)
@@ -432,63 +431,75 @@ class HiddenMarkovModel:
                 next_state -= 1
                 state = next_state
                 states.append(state)
-                
-                # loop until valid syllable count is found
+
+
                 while True:
                     # Sample next observation.
                     rand_var = random.uniform(0, 1)
                     next_obs = 0
+
                     while rand_var > 0:
                         rand_var -= self.O[state][next_obs]
                         next_obs += 1
-                    next_obs -= 1
 
+                    next_obs -= 1
                     # amount of syllables needed
                     diff = M - count
-
-                    # find word corresponding to observation
                     word = obs_map_r[next_obs]
                     syllable = self.find_syl(word, syl_dict, diff)
-
-                    # if a valid syllable count is found, update count and break
                     if syllable != -1:
                         count += syllable
                         break
 
                 emission.append(next_obs)
 
-
         return emission, states
+
+
+    def find_state(self, x):
+        '''
+        Chooses a state (based on observation matrix) that could have
+        generated a given emission x.
+        '''
+
+        # Find P(y | x) and sample state from the probs
+        probs = [row[x] for row in self.O]
+        sum_probs = sum(probs)
+        probs = [prob / sum_probs for prob in probs]
+        rand_var = random.uniform(0, 1)
+        next_state = 0
+        while rand_var > 0:
+            rand_var -= probs[next_state]
+            next_state += 1
+
+        return next_state - 1
+
 
     def find_syl (self, word, dic, diff):
         '''
-        Returns a valid number of syllables of a given word.
-        Returns -1 if not valid syllable count is found
-        for that word (i.e. total syllable count exceeds 10)
+        Returns number of syllables of a word. Returns -1
+        if the number of syllables in the word makes
+        the line exceed 10 syllables
         '''
+
         lst = dic[word.lower()]
+
         real = lst[0]
         end = lst[1]
 
 
-        # checks all possible syllable counts of the word
+        # threshold = 0
+        # bool found = False
         for i in range(len(real)):
             if real[i] <= diff:
                 return random.choice(real[i:])
-        
-        # checks all possible ending syllable counts of the word
+
         if len(end) != 0:
             for j in range(len(end)):
                 if end[j] == diff:
                     return end[j]
 
-        # returns -1 if no valid syllable count is found for that word
         return -1
-
-
-
-
-
 
 
     def probability_alphas(self, x):
@@ -540,9 +551,6 @@ class HiddenMarkovModel:
         return prob
 
 
-
-
-
 def unsupervised_HMM(X, n_states, N_iters):
     '''
     Helper function to train an unsupervised HMM. The function determines the
@@ -552,11 +560,11 @@ def unsupervised_HMM(X, n_states, N_iters):
 
     Arguments:
         X:          A dataset consisting of input sequences in the form
-                    of lists of variable length, consisting of integers 
+                    of lists of variable length, consisting of integers
                     ranging from 0 to D - 1. In other words, a list of lists.
 
         n_states:   Number of hidden states to use in training.
-        
+
         N_iters:    The number of iterations to train on.
     '''
 
@@ -564,7 +572,7 @@ def unsupervised_HMM(X, n_states, N_iters):
     observations = set()
     for x in X:
         observations |= set(x)
-    
+
     # Compute L and D.
     L = n_states
     D = len(observations)
@@ -576,7 +584,7 @@ def unsupervised_HMM(X, n_states, N_iters):
         norm = sum(A[i])
         for j in range(len(A[i])):
             A[i][j] /= norm
-    
+
     # Randomly initialize and normalize matrix O.
     O = [[random.random() for i in range(D)] for j in range(L)]
 
